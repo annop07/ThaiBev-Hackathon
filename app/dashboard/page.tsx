@@ -9,6 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { mockUser} from "@/lib/auth";
 import { LineChart as LineChartIcon,Download as FileDownload, Settings, Warehouse
 } from 'lucide-react';
+import { Header } from './components/layout/Header';
+import { TabNavigation } from './components/tabs/TabNavigation';
+import { OverviewTab } from './components/tabs/OverviewTab';
+import { AnalyticsTab } from './components/tabs/AnalyticsTab';
+import { DiscrepancyTab } from './components/tabs/DiscrepancyTab';
+import { Footer } from './components/layout/Footer';
+import { AllFactoriesTab } from './components/tabs/AllFactoriesTab';
 
 // Mock data
 const mockStockData = [
@@ -97,14 +104,6 @@ const analyticsInsights = {
     ]
 };
 
-import { Header } from './components/layout/Header';
-import { TabNavigation } from './components/tabs/TabNavigation';
-import { OverviewTab } from './components/tabs/OverviewTab';
-import { AnalyticsTab } from './components/tabs/AnalyticsTab';
-import { DiscrepancyTab } from './components/tabs/DiscrepancyTab';
-import { Footer } from './components/layout/Footer';
-import { AllFactoriesTab } from './components/tabs/AllFactoriesTab';
-
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null);
@@ -164,17 +163,35 @@ export default function Dashboard() {
                     
                     {selectedFactory && factoryData && (
                         <>
-                            <OverviewTab
-                                stockData={factoryData.stockData}
-                                discrepancyData={factoryData.discrepancyData}
-                            />
-                            <AnalyticsTab
-                                insights={factoryData.analyticsInsights}
-                                timeData={timeDiscrepancyData}
-                            />
-                            <DiscrepancyTab
-                                data={factoryData.discrepancyData}
-                            />
+                            <TabsContent value="overview">
+                                <OverviewTab
+                                    stockData={factoryData.stockData}
+                                    discrepancyData={factoryData.discrepancyData}
+                                />
+                            </TabsContent>
+                            
+                            <TabsContent value="analytics">
+                                <AnalyticsTab
+                                    insights={factoryData.analyticsInsights}
+                                    timeData={timeDiscrepancyData}
+                                />
+                            </TabsContent>
+                            
+                            <TabsContent value="discrepancy">
+                                <DiscrepancyTab
+                                    data={factoryData.discrepancyData}
+                                />
+                            </TabsContent>
+                            
+                            <TabsContent value="audit">
+                                <div className="p-6 bg-white rounded-lg shadow">
+                                    <h2 className="text-2xl font-bold mb-4">Audit Log</h2>
+                                    <p className="text-gray-500">ประวัติการเปลี่ยนแปลงและการตรวจสอบ</p>
+                                    <div className="mt-4">
+                                        <p>ไม่มีข้อมูลการตรวจสอบในขณะนี้</p>
+                                    </div>
+                                </div>
+                            </TabsContent>
                         </>
                     )}
                 </Tabs>

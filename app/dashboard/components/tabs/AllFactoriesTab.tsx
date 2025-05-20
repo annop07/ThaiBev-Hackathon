@@ -19,22 +19,19 @@ export function AllFactoriesTab() {
     const allFactoriesData = useMemo(() => {
         return mockFactories.map(factory => {
             const data = getFactoryData(factory);
-            const totalSystem = data.discrepancyData.reduce((acc, item) => acc + item.system, 0);
-            const totalPhysical = data.discrepancyData.reduce((acc, item) => acc + item.physical, 0);
-            const totalDifference = totalPhysical - totalSystem;
-            const discrepancyRate = ((Math.abs(totalDifference) / totalSystem) * 100).toFixed(2);
-
+            const factoryInfo = data.factory;
+            
             return {
                 id: factory.id,
                 code: factory.code,
                 name: factory.name,
                 region: factory.region,
                 province: factory.province,
-                systemCount: totalSystem,
-                physicalCount: totalPhysical,
-                difference: totalDifference,
-                discrepancyRate: Number(discrepancyRate),
-                status: Number(discrepancyRate) > 10 ? 'high' : Number(discrepancyRate) > 5 ? 'medium' : 'low'
+                systemCount: factoryInfo.systemCount,
+                physicalCount: factoryInfo.physicalCount,
+                difference: factoryInfo.physicalCount - factoryInfo.systemCount,
+                discrepancyRate: factoryInfo.discrepancyRate,
+                status: factoryInfo.status
             };
         });
     }, []);

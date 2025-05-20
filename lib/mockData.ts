@@ -1,9 +1,25 @@
 import type { Factory, FactoryData } from '@/types/factory';
 
+// Define types for product data
+interface ProductData {
+    code: string;
+    name: string;
+    boxPerUnit: number;
+    palletPerUnit: number;
+    boxPerPallet: number;
+    unit: string;
+    locations: string[];
+}
+
+// Define type for factory products
+type FactoryProductsMap = {
+    [key: string]: ProductData[];
+};
+
 // ข้อมูลสินค้าแต่ละโรงงาน
-const factoryProducts = {
+const factoryProducts: FactoryProductsMap = {
     // โรงงานอำนาจเจริญ 
-    amnatcharoen: [
+    F001: [
         {
             code: 'Z31064033029',
             name: 'ขาว 40 ดีกรี 330 มล.(เอส.เอส.)',
@@ -33,7 +49,7 @@ const factoryProducts = {
         }
     ],
     // โรงงานอุบลราชธานี
-    ubon: [
+    F014: [
         {
             code: 'Z31164033029',
             name: 'แสงโสม 40 ดีกรี 330 มล.',
@@ -63,7 +79,7 @@ const factoryProducts = {
         }
     ],
     // โรงงานขอนแก่น
-    khonkaen: [
+    F011: [
         {
             code: 'Z31264033029',
             name: 'หงส์ทอง 40 ดีกรี 330 มล.',
@@ -95,12 +111,12 @@ const factoryProducts = {
 };
 
 function generateMockDataForFactory(factory: Factory): FactoryData {
-    // เลือกข้อมูลสินค้าตามโรงงาน
-    const products = factoryProducts[factory.code.toLowerCase()] || [];
+    // เลือกข้อมูลสินค้าตามโรงงาน หรือใช้ข้อมูลจาก F001 เป็นค่าเริ่มต้น
+    const products = factoryProducts[factory.code] || factoryProducts['F001'] || [];
 
     // สร้างข้อมูล stock จากสินค้าและ locations
-    const stockData = products.flatMap(product =>
-        product.locations.map((location, index) => {
+    const stockData = products.flatMap((product: ProductData) =>
+        product.locations.map((location: string, index: number) => {
             const isSmallBatch = location.includes('2A');
             const baseUnits = isSmallBatch ? 3360 : 40320;
             const basePallets = isSmallBatch ? 2 : 24;
@@ -139,7 +155,7 @@ function generateMockDataForFactory(factory: Factory): FactoryData {
     );
 
     // สร้างข้อมูลความคลาดเคลื่อน
-    const discrepancyData = stockData.map((item, index) => {
+    const discrepancyData = stockData.map((item: any, index: number) => {
         const absPercentDiff = Math.abs((item.difference / item.totalUnits) * 100);
         const status = absPercentDiff > 5 ? 'high' :
             absPercentDiff > 2 ? 'medium' : 'low';
@@ -157,8 +173,8 @@ function generateMockDataForFactory(factory: Factory): FactoryData {
     });
 
     // คำนวณข้อมูลสรุป
-    const totalSystemCount = stockData.reduce((acc, item) => acc + item.totalUnits, 0);
-    const totalPhysicalCount = stockData.reduce((acc, item) => acc + item.countedBottles, 0);
+    const totalSystemCount = stockData.reduce((acc: number, item: any) => acc + item.totalUnits, 0);
+    const totalPhysicalCount = stockData.reduce((acc: number, item: any) => acc + item.countedBottles, 0);
     const totalDifference = totalPhysicalCount - totalSystemCount;
     const discrepancyRate = (Math.abs(totalDifference) / totalSystemCount) * 100;
 
