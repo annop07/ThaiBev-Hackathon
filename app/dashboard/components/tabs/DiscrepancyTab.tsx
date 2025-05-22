@@ -1,4 +1,6 @@
-import { useState } from 'react';
+"use client"
+
+import React, { useState } from 'react';
 import {
     Card,
     CardContent,
@@ -27,7 +29,7 @@ interface DiscrepancyItem {
     physical: number;
     system: number;
     difference: number;
-    status: 'high' | 'medium' | 'low';
+    status: string;
 }
 
 interface DiscrepancyTabProps {
@@ -151,3 +153,8 @@ export function DiscrepancyTab({ data }: DiscrepancyTabProps) {
         </Card>
     );
 }
+
+// ส่วนที่แสดงใน Dashboard (page.tsx)
+<TabsContent value="discrepancy">
+    <DiscrepancyTab data={factoryData ? factoryData.discrepancyData : discrepancyData} />
+</TabsContent>

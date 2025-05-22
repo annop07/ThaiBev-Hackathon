@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
     Card,
     CardContent,
@@ -14,13 +14,26 @@ import { columns } from "../tables/FactoryColumns";
 import { mockFactories } from "@/types/factory";
 import { getFactoryData } from "@/lib/mockData";
 import { Badge } from "@/components/ui/badge";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export function AllFactoriesTab() {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Memoize factory data with consistent number formatting
     const allFactoriesData = useMemo(() => {
         return mockFactories.map(factory => {
             const data = getFactoryData(factory);
             const factoryInfo = data.factory;
-            
+            const discrepancyRate = factoryInfo.discrepancyRate || 0;
+
             return {
                 id: factory.id,
                 code: factory.code,
@@ -30,11 +43,19 @@ export function AllFactoriesTab() {
                 systemCount: factoryInfo.systemCount,
                 physicalCount: factoryInfo.physicalCount,
                 difference: factoryInfo.physicalCount - factoryInfo.systemCount,
-                discrepancyRate: factoryInfo.discrepancyRate,
+                discrepancyRate: Number(discrepancyRate.toFixed(2)),
                 status: factoryInfo.status
             };
         });
     }, []);
+
+    // Calculate average discrepancy rate with consistent formatting
+    const averageDiscrepancyRate = useMemo(() => {
+        if (!allFactoriesData.length) return 0;
+        const total = allFactoriesData.reduce((acc, f) => acc + f.discrepancyRate, 0);
+        const average = total / allFactoriesData.length;
+        return Number(average.toFixed(2));
+    }, [allFactoriesData]);
 
     const regionSummary = useMemo(() => {
         return allFactoriesData.reduce((acc, factory) => {
@@ -53,10 +74,18 @@ export function AllFactoriesTab() {
         }, {} as Record<string, any>);
     }, [allFactoriesData]);
 
-    const chartData = Object.values(regionSummary).map(region => ({
-        name: region.name,
-        avgRate: (region.avgDiscrepancyRate / region.factoryCount).toFixed(2)
-    }));
+    const chartData = useMemo(() => {
+        return Object.values(regionSummary).map(region => ({
+            name: region.name,
+            avgRate: Number((region.avgDiscrepancyRate / region.factoryCount).toFixed(2))
+        }));
+    }, [regionSummary]);
+
+    // Calculate pagination
+    const totalPages = Math.ceil(allFactoriesData.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentFactories = allFactoriesData.slice(startIndex, endIndex);
 
     return (
         <div className="space-y-6">
@@ -101,7 +130,7 @@ export function AllFactoriesTab() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {(allFactoriesData.reduce((acc, f) => acc + f.discrepancyRate, 0) / allFactoriesData.length).toFixed(2)}%
+                            {averageDiscrepancyRate}%
                         </div>
                     </CardContent>
                 </Card>
@@ -132,11 +161,49 @@ export function AllFactoriesTab() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>รายการโรงงานทั้งหมด</CardTitle>
-                    <CardDescription>แสดงข้อมูลความคลาดเคลื่อนของทุกโรงงาน</CardDescription>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle>รายการโรงงานทั้งหมด</CardTitle>
+                            <CardDescription>แสดงข้อมูลความคลาดเคลื่อนของทุกโรงงาน</CardDescription>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                            แสดง {startIndex + 1}-{Math.min(endIndex, allFactoriesData.length)} จาก {allFactoriesData.length} รายการ
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <DataTable columns={columns} data={allFactoriesData} />
+                    <DataTable columns={columns} data={currentFactories} />
+
+                    <div className="mt-4 flex justify-center">
+                        <Pagination>
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                    />
+                                </PaginationItem>
+
+                                {[...Array(totalPages)].map((_, i) => (
+                                    <PaginationItem key={i + 1}>
+                                        <PaginationLink
+                                            onClick={() => setCurrentPage(i + 1)}
+                                            isActive={currentPage === i + 1}
+                                        >
+                                            {i + 1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+
+                                <PaginationItem>
+                                    <PaginationNext
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    </div>
                 </CardContent>
             </Card>
         </div>

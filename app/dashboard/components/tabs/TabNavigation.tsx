@@ -34,10 +34,6 @@ export function TabNavigation({ activeTab, setActiveTab, userRole }) {
     return (
         <div className="flex items-center justify-between">
             <TabsList>
-                <TabsTrigger value="all-factories" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    <span>ภาพรวมทุกโรงงาน</span>
-                </TabsTrigger>
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                     <PieChart className="h-4 w-4" />
                     <span>ภาพรวม</span>

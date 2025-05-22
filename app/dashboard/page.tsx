@@ -1,21 +1,22 @@
 ﻿"use client"
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Factory, mockFactories, FactoryData } from '@/types/factory';
 import { useState, useEffect } from 'react';
 import { getFactoryData } from '@/lib/mockData';
 
-// Import ShadCN UI components
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockUser} from "@/lib/auth";
-import { LineChart as LineChartIcon,Download as FileDownload, Settings, Warehouse
+// Import UI components
+import { mockUser } from "@/lib/auth";
+import {
+    LineChart as LineChartIcon, Download as FileDownload, Settings, Warehouse
 } from 'lucide-react';
 import { Header } from './components/layout/Header';
 import { TabNavigation } from './components/tabs/TabNavigation';
 import { OverviewTab } from './components/tabs/OverviewTab';
 import { AnalyticsTab } from './components/tabs/AnalyticsTab';
-import { DiscrepancyTab } from './components/tabs/DiscrepancyTab';
 import { Footer } from './components/layout/Footer';
-import { AllFactoriesTab } from './components/tabs/AllFactoriesTab';
+import Sidebar from './components/layout/Sidebar';
+import { StockCountReport } from './components/reports/StockCountReport';
 
 // Mock data
 const mockStockData = [
@@ -48,7 +49,6 @@ const recentNotifications = [
     { id: 3, title: "การนับสต็อกเสร็จสิ้น", description: "การนับสต็อกในโซน A เสร็จสมบูรณ์แล้ว", type: "info", time: "2 ชั่วโมงที่แล้ว" }
 ];
 
-// Mock warehouse zones data
 const warehouseZones = [
     { id: 1, name: 'A', itemCount: 120, status: 'completed' },
     { id: 2, name: 'B', itemCount: 80, status: 'in-progress' },
@@ -56,7 +56,6 @@ const warehouseZones = [
     { id: 4, name: 'D', itemCount: 150, status: 'completed' },
 ];
 
-// Mock time discrepancy data for heatmap
 const timeDiscrepancyData = [
     { hour: '00:00', discrepancy: 5 },
     { hour: '01:00', discrepancy: 3 },
@@ -84,7 +83,6 @@ const timeDiscrepancyData = [
     { hour: '23:00', discrepancy: 6 },
 ];
 
-// เพิ่ม mock data สำหรับการวิเคราะห์เพิ่มเติม
 const analyticsInsights = {
     trendAnalysis: {
         trend: "เพิ่มขึ้น",
@@ -104,24 +102,34 @@ const analyticsInsights = {
     ]
 };
 
+// เพิ่ม import
+import { StockCountSignatures, Signature } from '@/types/signature';
+import NotificationService from '@/lib/notificationService';
+
 export default function Dashboard() {
-    const [activeTab, setActiveTab] = useState('overview');
+    const [currentUser] = useState<User>({
+        id: "1",
+        name: "John Doe",
+        position: "Warehouse Head",
+        region: "Central",
+        role: "warehouse_head"
+    });
+
+    const [signatures, setSignatures] = useState<StockCountSignatures>({});
     const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null);
     const [factoryData, setFactoryData] = useState<FactoryData | null>(null);
 
-    // Initialize with first factory
     useEffect(() => {
         if (mockFactories.length > 0 && !selectedFactory) {
             setSelectedFactory(mockFactories[0]);
         }
     }, [selectedFactory]);
 
-    // Load factory data when selected factory changes
     useEffect(() => {
         if (selectedFactory) {
             try {
                 const data = getFactoryData(selectedFactory);
-                console.log('Factory Data:', data); // เพื่อ debug
+                console.log('Factory Data:', data);
                 setFactoryData(data);
             } catch (error) {
                 console.error('Error fetching factory data:', error);
@@ -129,9 +137,36 @@ export default function Dashboard() {
         }
     }, [selectedFactory]);
 
+    useEffect(() => {
+        // ตรวจสอบความคลาดเคลื่อนเมื่อข้อมูลเปลี่ยนแปลง
+        if (factoryData?.discrepancyData) {
+            factoryData.discrepancyData.forEach(item => {
+                if (Math.abs(item.difference) > 10) {
+                    NotificationService.notifyDiscrepancy(item.itemName, item.difference);
+                }
+            });
+        }
+    }, [factoryData]);
+
     const handleFactoryChange = (factoryId: string) => {
         const factory = mockFactories.find(f => f.id.toString() === factoryId);
         setSelectedFactory(factory || null);
+    };
+
+    // แจ้งเตือนสถานะการตรวจนับ
+    const updateZoneStatus = (zone: string, status: string) => {
+        NotificationService.notifyStockCountStatus(zone, status);
+    };
+
+    // ตรวจสอบสิทธิ์การเข้าถึง
+    const canAccessRegion = (userRegion: string) => {
+        if (!currentUser) return false;
+
+        return (
+            (currentUser.role === 'rdc_manager' && currentUser.region === userRegion) ||
+            (currentUser.role === 'inventory_team' && currentUser.region === userRegion) ||
+            (currentUser.role === 'regional_manager' && currentUser.region === userRegion)
+        );
     };
 
     const formattedDate = new Date().toLocaleString('th-TH', {
@@ -141,63 +176,79 @@ export default function Dashboard() {
         minute: '2-digit'
     });
 
+    // เพิ่มฟังก์ชัน handleSign
+    const handleSign = (signature: Signature) => {
+        setSignatures(prev => {
+            switch (currentUser.role) {
+                case 'warehouse_head':
+                    return { ...prev, warehouseHead: signature };
+                case 'inventory_team':
+                    return { ...prev, inventoryTeam: signature };
+                case 'regional_manager':
+                    return { ...prev, regionalManager: signature };
+                default:
+                    return prev;
+            }
+        });
+    };
+
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50">
-            <Header
-                notifications={recentNotifications}
-                selectedFactory={selectedFactory}
-                onFactoryChange={handleFactoryChange}
-            />
+        <div className="flex h-screen">
+            <Sidebar />
+            <div className="flex-1 flex flex-col">
+                <Header
+                    notifications={recentNotifications}
+                    selectedFactory={selectedFactory}
+                    onFactoryChange={handleFactoryChange}
+                />
 
-            <main className="flex-1 container mx-auto py-6 px-4">
-                <Tabs defaultValue="all-factories" value={activeTab} onValueChange={setActiveTab}>
-                    <TabNavigation
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        userRole={mockUser.role}
-                    />
+                <main className="flex-1 p-6 space-y-6 bg-gray-50">
+                    <Tabs defaultValue="overview">
+                        <TabsList>
+                            <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
+                            <TabsTrigger value="analytics">วิเคราะห์</TabsTrigger>
+                        </TabsList>
 
-                    <TabsContent value="all-factories">
-                        <AllFactoriesTab />
-                    </TabsContent>
-                    
-                    {selectedFactory && factoryData && (
-                        <>
-                            <TabsContent value="overview">
-                                <OverviewTab
-                                    stockData={factoryData.stockData}
-                                    discrepancyData={factoryData.discrepancyData}
-                                />
-                            </TabsContent>
-                            
-                            <TabsContent value="analytics">
-                                <AnalyticsTab
-                                    insights={factoryData.analyticsInsights}
-                                    timeData={timeDiscrepancyData}
-                                />
-                            </TabsContent>
-                            
-                            <TabsContent value="discrepancy">
-                                <DiscrepancyTab
-                                    data={factoryData.discrepancyData}
-                                />
-                            </TabsContent>
-                            
-                            <TabsContent value="audit">
-                                <div className="p-6 bg-white rounded-lg shadow">
-                                    <h2 className="text-2xl font-bold mb-4">Audit Log</h2>
-                                    <p className="text-gray-500">ประวัติการเปลี่ยนแปลงและการตรวจสอบ</p>
-                                    <div className="mt-4">
-                                        <p>ไม่มีข้อมูลการตรวจสอบในขณะนี้</p>
-                                    </div>
+                        <TabsContent value="overview">
+                            <OverviewTab
+                                stockData={factoryData ? factoryData.stockData : []}
+                                discrepancyData={factoryData ? factoryData.discrepancyData : []}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="analytics">
+                            <AnalyticsTab
+                                insights={factoryData ? factoryData.analyticsInsights : analyticsInsights}
+                                timeData={timeDiscrepancyData}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="audit">
+                            <div className="p-6 bg-white rounded-lg shadow">
+                                <h2 className="text-2xl font-bold mb-4">Audit Log</h2>
+                                <p className="text-gray-500">ประวัติการเปลี่ยนแปลงและการตรวจสอบ</p>
+                                <div className="mt-4">
+                                    <p>ไม่มีข้อมูลการตรวจสอบในขณะนี้</p>
                                 </div>
-                            </TabsContent>
-                        </>
-                    )}
-                </Tabs>
-            </main>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
 
-            <Footer lastUpdate={formattedDate} />
+                    {/* แสดงข้อมูลเฉพาะภาคที่ผู้ใช้มีสิทธิ์เข้าถึง */}
+                    <div className="grid gap-6">
+                        <StockCountReport
+                            date={new Date()}
+                            region={currentUser.region}
+                            stockData={mockStockData} // Change this line
+                            currentUser={currentUser}
+                            signatures={signatures}
+                            onSign={handleSign}
+                        />
+                    </div>
+                </main>
+
+                <Footer lastUpdate={formattedDate} />
+            </div>
         </div>
     );
 }

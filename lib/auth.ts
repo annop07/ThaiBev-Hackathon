@@ -1,13 +1,19 @@
-export type UserRole = "admin" | "checker" | "viewer";
+export const mockUser = {
+  id: '1',
+  name: 'John Doe',
+  role: 'rdc_manager',
+  region: 'central',
+  email: 'john.doe@example.com',
+  position: 'RDC Manager'
+} as const;
+
+export type UserRole = 'rdc_manager' | 'inventory_team' | 'regional_manager';
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
   role: UserRole;
+  region: string;
+  email: string;
+  position: string;
 }
-
-export const mockUser: User = {
-  id: 1,
-  name: "Admin Demo",
-  role: "admin", // เปลี่ยนเป็น "checker" หรือ "viewer" เพื่อทดสอบสิทธิ์
-};
