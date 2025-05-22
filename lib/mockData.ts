@@ -17,207 +17,293 @@ type FactoryProductsMap = {
     [key: string]: ProductData[];
 };
 
-// ข้อมูลสินค้าแต่ละโรงงาน
-const factoryProducts: FactoryProductsMap = {
-    // โรงงานอำนาจเจริญ 
-    F001: [
-        {
-            code: 'Z31064033029',
-            name: 'ขาว 40 ดีกรี 330 มล.(เอส.เอส.)',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA001A', '1BA001B', '1BA002A']
-        },
-        {
-            code: 'Z31064033030',
-            name: 'หงส์ทอง 40 ดีกรี 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA003A', '1BA004A']
-        },
-        {
-            code: 'Z31064033031',
-            name: 'แสงโสม 40 ดีกรี 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA005A', '1BA006A']
-        }
-    ],
-    // โรงงานอุบลราชธานี
-    F014: [
-        {
-            code: 'Z31164033029',
-            name: 'แสงโสม 40 ดีกรี 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA001A', '1BA002A']
-        },
-        {
-            code: 'Z31164033030',
-            name: 'เบียร์ช้าง 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA003A', '1BA004A']
-        },
-        {
-            code: 'Z31164033031',
-            name: 'เบียร์ลีโอ 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA005A', '1BA006A']
-        }
-    ],
-    // โรงงานขอนแก่น
-    F011: [
-        {
-            code: 'Z31264033029',
-            name: 'หงส์ทอง 40 ดีกรี 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA001A', '1BA002A']
-        },
-        {
-            code: 'Z31264033030',
-            name: 'เบียร์ช้าง 330 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA003A', '1BA004A']
-        },
-        {
-            code: 'Z31264033031',
-            name: 'น้ำดื่มช้าง 600 มล.',
-            boxPerUnit: 24,
-            palletPerUnit: 1680,
-            boxPerPallet: 70,
-            unit: 'BT',
-            locations: ['1BA005A', '1BA006A']
-        }
-    ]
-};
+// Mock factories data
+const mockFactories = [
+    { code: 'F001', name: 'โรงงานอำนาจเจริญ', region: 'Northeast' },
+    { code: 'F014', name: 'โรงงานอุบลราชธานี', region: 'Northeast' },
+    { code: 'F011', name: 'โรงงานขอนแก่น', region: 'Central' },
+    // เพิ่มโรงงานอื่นๆ ที่นี่
+];
 
-function generateMockDataForFactory(factory: Factory): FactoryData {
-    // เพิ่มการตรวจสอบภูมิภาค
-    const factoryRegion = {
-        'F001': 'Northeast', // อำนาจเจริญ
-        'F014': 'Northeast', // อุบลราชธานี
-        'F011': 'Central',   // กรุงเทพมหานคร
+// Function สำหรับสร้างข้อมูลสินค้าที่แตกต่างกันตามโรงงาน
+function generateUniqueProductsForFactory(factory: Factory): ProductData[] {
+    const randomStock = (base: number) => {
+        const variation = Math.floor(Math.random() * (base * 0.1));
+        return base + (Math.random() > 0.5 ? variation : -variation);
     };
 
-    // กรองข้อมูลตามภูมิภาค
-    const products = factoryProducts[factory.code]?.map(product => ({
-        ...product,
-        region: factoryRegion[factory.code as keyof typeof factoryRegion]
-    })) || [];
-
-    // สร้างข้อมูล stock จากสินค้าและ locations
-    const stockData = products.flatMap((product: ProductData & { region: string }) =>
-        product.locations.map((location: string) => {
-            const isSmallBatch = location.includes('2A');
-            const baseUnits = isSmallBatch ? 3360 : 40320;
-            const basePallets = isSmallBatch ? 2 : 24;
-            const baseBoxes = isSmallBatch ? 140 : 1680;
-
-            // สุ่มความคลาดเคลื่อน ±5%
-            const variationPercent = (Math.random() * 10 - 5) / 100;
-            const countedUnits = Math.round(baseUnits * (1 + variationPercent));
-            const difference = countedUnits - baseUnits;
-
-            return {
-                itemCode: product.code,
-                description: product.name,
-                location: location,
-                manufacturingDate: new Date(2025, 2, 15).toLocaleDateString('en-US'),
-                tihi: '10x7',
-                status: 'Available',
-                boxPerUnit: product.boxPerUnit,
-                palletPerUnit: product.palletPerUnit,
-                boxPerPallet: product.boxPerPallet,
-                unit: product.unit,
-                // ข้อมูลในระบบ
-                totalUnits: baseUnits,
-                totalPallets: basePallets,
-                totalBoxes: baseBoxes,
-                // ข้อมูลนับจริง
-                countedPallets: Math.round(basePallets * (1 + variationPercent)),
-                countedBoxes: Math.round(baseBoxes * (1 + variationPercent)),
-                countedBottles: countedUnits,
-                // ผลต่าง
-                difference: difference,
-                system: baseUnits,
-                physical: countedUnits,
-                region: product.region // เพิ่ม region เข้าไปในข้อมูล
-            };
-        })
-    );
-
-    // สร้างข้อมูลความคลาดเคลื่อน
-    const discrepancyData = stockData.map((item: any, index: number) => {
-        const absPercentDiff = Math.abs((item.difference / item.totalUnits) * 100);
-        const status = absPercentDiff > 5 ? 'high' :
-            absPercentDiff > 2 ? 'medium' : 'low';
-
-        return {
-            id: index + 1,
-            itemCode: item.itemCode,
-            itemName: item.description,
-            location: item.location,
-            physical: item.countedBottles,
-            system: item.totalUnits,
-            difference: item.difference,
-            status: status as 'high' | 'medium' | 'low'
-        };
-    });
-
-    // คำนวณข้อมูลสรุป
-    const totalSystemCount = stockData.reduce((acc: number, item: any) => acc + item.totalUnits, 0);
-    const totalPhysicalCount = stockData.reduce((acc: number, item: any) => acc + item.countedBottles, 0);
-    const totalDifference = totalPhysicalCount - totalSystemCount;
-    const discrepancyRate = (Math.abs(totalDifference) / totalSystemCount) * 100;
-
-    // ข้อมูลการวิเคราะห์
-    const analyticsInsights = {
-        trendAnalysis: {
-            trend: discrepancyRate > 5 ? "เพิ่มขึ้น" : "คงที่",
-            percentage: discrepancyRate,
-            comparedTo: "เดือนที่แล้ว",
-            details: `${discrepancyRate > 5 ? 'พบ' : 'ไม่พบ'}ความคลาดเคลื่อนที่มีนัยสำคัญใน${factory.name}`
+    // สินค้าพื้นฐานที่มีในทุกโรงงาน
+    const commonProducts = [
+        {
+            code: `${factory.code}-W001`,
+            name: `น้ำดื่ม ${factory.province} 600ml`,
+            boxPerUnit: 24,
+            palletPerUnit: 1680,
+            boxPerPallet: 70,
+            unit: 'BT',
+            locations: [`A${factory.code.slice(-2)}-01`, `A${factory.code.slice(-2)}-02`],
+            system: randomStock(5000),
+            physical: randomStock(5000)
         },
-        topCategories: [
-            { name: "สุรา 40 ดีกรี", percentage: 85, status: discrepancyRate > 5 ? "เพิ่มขึ้น" : "คงที่" },
-            { name: "สุรา 35 ดีกรี", percentage: 10, status: "คงที่" },
-            { name: "สุราพิเศษ", percentage: 5, status: "คงที่" }
+        {
+            code: `${factory.code}-W002`,
+            name: `น้ำแร่ ${factory.province} 1.5L`,
+            boxPerUnit: 12,
+            palletPerUnit: 840,
+            boxPerPallet: 70,
+            unit: 'BT',
+            locations: [`A${factory.code.slice(-2)}-03`, `A${factory.code.slice(-2)}-04`],
+            system: randomStock(3000),
+            physical: randomStock(3000)
+        }
+    ];
+
+    // สินค้าตามภูมิภาค
+    const regionSpecificProducts = {
+        'North': [
+            {
+                code: `${factory.code}-N001`,
+                name: `ชาเขียวมัทฉะ ${factory.province} 500ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`B${factory.code.slice(-2)}-01`, `B${factory.code.slice(-2)}-02`],
+                system: randomStock(4000),
+                physical: randomStock(4000)
+            },
+            {
+                code: `${factory.code}-N002`,
+                name: `กาแฟดอยช้าง ${factory.province} 250ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`B${factory.code.slice(-2)}-03`, `B${factory.code.slice(-2)}-04`],
+                system: randomStock(3500),
+                physical: randomStock(3500)
+            }
         ],
-        recommendations: [
-            `ตรวจนับสต็อกตามกำหนดการปกติที่${factory.name}`,
-            "ดำเนินการตามมาตรฐานการจัดเก็บ",
-            "บันทึกข้อมูลการนับสต็อกอย่างสม่ำเสมอ"
+        'Northeast': [
+            {
+                code: `${factory.code}-E001`,
+                name: `เบียร์ช้าง ${factory.province} 640ml`,
+                boxPerUnit: 12,
+                palletPerUnit: 840,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`C${factory.code.slice(-2)}-01`, `C${factory.code.slice(-2)}-02`],
+                system: randomStock(6000),
+                physical: randomStock(6000)
+            },
+            {
+                code: `${factory.code}-E002`,
+                name: `เบียร์ลีโอ ${factory.province} 640ml`,
+                boxPerUnit: 12,
+                palletPerUnit: 840,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`C${factory.code.slice(-2)}-03`, `C${factory.code.slice(-2)}-04`],
+                system: randomStock(5500),
+                physical: randomStock(5500)
+            }
+        ],
+        'Central': [
+            {
+                code: `${factory.code}-C001`,
+                name: `แสงโสม ${factory.province} 700ml`,
+                boxPerUnit: 12,
+                palletPerUnit: 840,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`D${factory.code.slice(-2)}-01`, `D${factory.code.slice(-2)}-02`],
+                system: randomStock(4500),
+                physical: randomStock(4500)
+            },
+            {
+                code: `${factory.code}-C002`,
+                name: `รีเจนซี่ ${factory.province} 700ml`,
+                boxPerUnit: 12,
+                palletPerUnit: 840,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`D${factory.code.slice(-2)}-03`, `D${factory.code.slice(-2)}-04`],
+                system: randomStock(4000),
+                physical: randomStock(4000)
+            }
+        ],
+        'East': [
+            {
+                code: `${factory.code}-T001`,
+                name: `น้ำทับทิม ${factory.province} 400ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`E${factory.code.slice(-2)}-01`, `E${factory.code.slice(-2)}-02`],
+                system: randomStock(3500),
+                physical: randomStock(3500)
+            },
+            {
+                code: `${factory.code}-T002`,
+                name: `น้ำมังคุด ${factory.province} 400ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`E${factory.code.slice(-2)}-03`, `E${factory.code.slice(-2)}-04`],
+                system: randomStock(3200),
+                physical: randomStock(3200)
+            }
+        ],
+        'West': [
+            {
+                code: `${factory.code}-S001`,
+                name: `ชามะนาว ${factory.province} 500ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`F${factory.code.slice(-2)}-01`, `F${factory.code.slice(-2)}-02`],
+                system: randomStock(3800),
+                physical: randomStock(3800)
+            },
+            {
+                code: `${factory.code}-S002`,
+                name: `ชาเย็น ${factory.province} 500ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`F${factory.code.slice(-2)}-03`, `F${factory.code.slice(-2)}-04`],
+                system: randomStock(3600),
+                physical: randomStock(3600)
+            }
+        ],
+        'South': [
+            {
+                code: `${factory.code}-H001`,
+                name: `น้ำมะพร้าว ${factory.province} 350ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`G${factory.code.slice(-2)}-01`, `G${factory.code.slice(-2)}-02`],
+                system: randomStock(4200),
+                physical: randomStock(4200)
+            },
+            {
+                code: `${factory.code}-H002`,
+                name: `น้ำส้ม ${factory.province} 350ml`,
+                boxPerUnit: 24,
+                palletPerUnit: 1680,
+                boxPerPallet: 70,
+                unit: 'BT',
+                locations: [`G${factory.code.slice(-2)}-03`, `G${factory.code.slice(-2)}-04`],
+                system: randomStock(4000),
+                physical: randomStock(4000)
+            }
         ]
     };
 
-    // ส่งคืนข้อมูลทั้งหมด
+    // สร้างข้อมูลย้อนหลัง 7 วัน
+    const generateDates = () => {
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            dates.push(date);
+        }
+        return dates;
+    };
+
+    const dates = generateDates();
+
+    // รวมสินค้าทั้งหมด
+    const allProducts = dates.flatMap(date => {
+        return [
+            ...commonProducts,
+            ...(regionSpecificProducts[factory.region as keyof typeof regionSpecificProducts] || [])
+        ].map(product => ({
+            ...product,
+            date: date, // เพิ่มวันที่
+            region: factory.region,
+            factory: factory.name,
+            manufacturingDate: new Date(2024, 2, 15),
+            difference: product.physical - product.system,
+            tihi: '10x7',
+            status: Math.abs(product.physical - product.system) > 20 ? 'high' :
+                Math.abs(product.physical - product.system) > 10 ? 'medium' : 'low',
+            zone: product.locations[0].split('-')[0]
+        }));
+    });
+
+    return allProducts;
+}
+
+// อัปเดตฟังก์ชัน generateMockDataForFactory
+function generateMockDataForFactory(factory: Factory): FactoryData {
+    const products = generateUniqueProductsForFactory(factory).map(product => ({
+        ...product,
+        code: product.code,
+        name: product.name,
+        zone: product.locations[0].split('-')[0],
+        location: product.locations[0],
+        position: product.locations[0].split('-')[1] || '',
+        system: product.system,
+        physical: product.physical,
+        difference: product.physical - product.system,
+        date: new Date() // เพิ่ม field date
+    }));
+
+    // สร้างข้อมูลความคลาดเคลื่อน
+    const discrepancyData = products.map(product => ({
+        id: Number(product.code.split('-')[1]),
+        code: product.code,
+        name: product.name,
+        location: product.location,
+        zone: product.zone,
+        position: product.position, // เพิ่มข้อมูลตำแหน่ง
+        system: product.system,
+        physical: product.physical,
+        difference: product.physical - product.system,
+        status: Math.abs(product.physical - product.system) > 20 ? 'high' :
+            Math.abs(product.physical - product.system) > 10 ? 'medium' : 'low',
+    }));
+
+    // สร้างข้อมูลวิเคราะห์เฉพาะโรงงาน
+    const analyticsInsights = {
+        trendAnalysis: {
+            trend: products.reduce((acc, curr) => acc + curr.difference, 0) > 0 ? "เพิ่มขึ้น" : "ลดลง",
+            percentage: Math.abs(products.reduce((acc, curr) => acc + curr.difference, 0) /
+                products.reduce((acc, curr) => acc + curr.system, 0) * 100).toFixed(2),
+            comparedTo: "เดือนที่แล้ว",
+            details: `ข้อมูลสำหรับ${factory.name}: พบความคลาดเคลื่อนมากที่สุดในช่วงเวลา 14:00-16:00 น.`
+        },
+        topCategories: [
+            { name: "น้ำดื่ม", percentage: 35, status: "เพิ่มขึ้น" },
+            { name: "เครื่องดื่มแอลกอฮอล์", percentage: 28, status: "คงที่" },
+            { name: "เครื่องดื่มอื่นๆ", percentage: 22, status: "ลดลง" }
+        ],
+        recommendations: [
+            `ควรเพิ่มความถี่ในการตรวจนับสินค้าที่${factory.name}`,
+            `แนะนำให้ตรวจสอบกระบวนการจัดเก็บที่${factory.name} โซน ${products[0].zone}`,
+            `ปรับปรุงการบันทึกข้อมูลสำหรับสินค้าที่มีความคลาดเคลื่อนสูงที่${factory.name}`
+        ]
+    };
+
     return {
-        stockData,
+        stockData: products,
         discrepancyData,
         analyticsInsights,
         factory: {
             ...factory,
-            region: factoryRegion[factory.code as keyof typeof factoryRegion]
+            systemCount: products.reduce((acc, item) => acc + item.system, 0),
+            physicalCount: products.reduce((acc, item) => acc + item.physical, 0),
+            discrepancyRate: discrepancyData.reduce((acc, item) =>
+                acc + Math.abs(item.difference), 0) / discrepancyData.length,
+            status: discrepancyData.some(item => item.status === 'high') ? 'high' :
+                discrepancyData.some(item => item.status === 'medium') ? 'medium' : 'low'
         }
     };
 }
@@ -226,14 +312,57 @@ function generateMockDataForFactory(factory: Factory): FactoryData {
 const factoryDataCache = new Map<string, FactoryData>();
 
 function getFactoryData(factory: Factory): FactoryData {
-    // ตรวจสอบ cache ก่อน
-    const cachedData = factoryDataCache.get(factory.code);
-    if (cachedData) {
-        return cachedData;
+    // ถ้ามีข้อมูลใน cache ให้ใช้ข้อมูลจาก cache
+    if (factoryDataCache.has(factory.code)) {
+        return factoryDataCache.get(factory.code)!;
     }
 
-    // ถ้าไม่มีใน cache ให้สร้างข้อมูลใหม่
-    const data = generateMockDataForFactory(factory);
+    // สร้างข้อมูลสำหรับโรงงาน
+    const products = generateUniqueProductsForFactory(factory);
+
+    const data: FactoryData = {
+        stockData: products,
+        discrepancyData: products.map(product => ({
+            id: Number(product.code.split('-')[1]),
+            itemCode: product.code,
+            itemName: product.name,
+            location: product.locations[0],
+            zone: product.zone,
+            system: product.system,
+            physical: product.physical,
+            difference: product.physical - product.system,
+            status: Math.abs(product.physical - product.system) > 20 ? 'high' :
+                Math.abs(product.physical - product.system) > 10 ? 'medium' : 'low',
+            region: product.region,
+            date: product.date
+        })),
+        analyticsInsights: {
+            trendAnalysis: {
+                trend: "เพิ่มขึ้น",
+                percentage: 15,
+                comparedTo: "เดือนที่แล้ว",
+                details: `ความคลาดเคลื่อนของ${factory.name} มีแนวโน้มเพิ่มขึ้น`
+            },
+            topCategories: [
+                { name: "เครื่องดื่ม", percentage: 35, status: "เพิ่มขึ้น" },
+                { name: "ขนม", percentage: 28, status: "คงที่" },
+                { name: "อาหาร", percentage: 22, status: "ลดลง" }
+            ],
+            recommendations: [
+                `ควรเพิ่มความถี่ในการตรวจนับสินค้าที่${factory.name}`,
+                `แนะนำให้ตรวจสอบกระบวนการจัดเก็บที่${factory.name}`,
+                "ปรับปรุงการบันทึกข้อมูลสำหรับสินค้าที่มีหลายขนาดบรรจุ"
+            ]
+        },
+        factory: {
+            ...factory,
+            systemCount: products.reduce((acc, item) => acc + item.system, 0),
+            physicalCount: products.reduce((acc, item) => acc + item.physical, 0),
+            discrepancyRate: products.reduce((acc, item) =>
+                acc + Math.abs(item.physical - item.system), 0) / products.length,
+            status: 'medium'
+        }
+    };
 
     // เก็บข้อมูลลง cache
     factoryDataCache.set(factory.code, data);
@@ -242,10 +371,7 @@ function getFactoryData(factory: Factory): FactoryData {
 }
 
 // export ฟังก์ชันที่จำเป็น
-export { getFactoryData, factoryDataCache };
-
-// Mock data for users
-export const users: User[] = [
+const users: User[] = [
     {
         id: "1",
         name: "Admin User",
@@ -364,3 +490,11 @@ export const users: User[] = [
         isActive: true
     }
 ];
+
+// Single export statement for all needed items
+export {
+    mockFactories,
+    getFactoryData,
+    factoryDataCache,
+    users
+};

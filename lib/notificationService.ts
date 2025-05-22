@@ -13,12 +13,13 @@ class NotificationService {
     private static threshold = 10; // ค่าความคลาดเคลื่อนที่ถือว่าสูง
 
     public static notifyDiscrepancy(itemName: string, difference: number) {
-        if (Math.abs(difference) > this.threshold) {
-            toast.error('พบความคลาดเคลื่อนสูง', {
-                description: `สินค้า ${itemName} มีความคลาดเคลื่อน ${difference} หน่วย`,
-                duration: 5000,
-            });
-        }
+        // ลบหรือปิดการใช้งาน toast
+        // if (Math.abs(difference) > this.threshold) {
+        //     toast.error('พบความคลาดเคลื่อนสูง', {
+        //         description: `สินค้า ${itemName} มีความคลาดเคลื่อน ${difference} หน่วย`,
+        //         duration: 5000,
+        //     });
+        // }
     }
 
     public static notifySignatureNeeded(role: string) {
@@ -36,7 +37,7 @@ class NotificationService {
         };
 
         const { type, message } = statusMap[status as keyof typeof statusMap];
-        
+
         toast[type]('สถานะการตรวจนับ', {
             description: `โซน ${zone}: ${message}`,
             duration: 5000,

@@ -97,3 +97,22 @@ export interface FactoryData {
         status: 'high' | 'medium' | 'low';
     };
 }
+
+export interface StockData {
+    code: string;
+    name: string;
+    zone: string;
+    location: string;
+    system: number;
+    physical: number;
+    difference: number;
+    date: Date;
+}
+
+export interface StockCountSignatures {
+    [key: string]: {
+        name: string;
+        timestamp: Date;
+        role: string;
+    };
+}

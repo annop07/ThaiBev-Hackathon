@@ -1,9 +1,13 @@
 ﻿"use client"
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Factory, mockFactories, FactoryData } from '@/types/factory';
 import { useState, useEffect } from 'react';
+import { Factory, mockFactories, FactoryData } from '@/types/factory';
 import { getFactoryData } from '@/lib/mockData';
+import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
 
 // Import UI components
 import { mockUser } from "@/lib/auth";
@@ -16,8 +20,8 @@ import { OverviewTab } from './components/tabs/OverviewTab';
 import { AnalyticsTab } from './components/tabs/AnalyticsTab';
 import { Footer } from './components/layout/Footer';
 import Sidebar from './components/layout/Sidebar';
-import { StockCountReport } from './components/reports/StockCountReport';
-import { UserManagement } from './components/user-management/UserManagement';
+import { Card } from "@/components/ui/card";
+import { DatePicker } from "./components/filters/DatePicker";
 
 // Mock data
 const mockStockData = [
@@ -147,11 +151,11 @@ export default function Dashboard() {
     // users[7] - Regional Manager West
     // users[8] - Regional Manager South
 
-    const [currentUser] = useState<User>(users[0]); // เปลี่ยนเป็น index ที่ต้องการทดสอบ
-
-    const [signatures, setSignatures] = useState<StockCountSignatures>({});
+    const [currentUser] = useState<User>(users[4]); // เปลี่ยนเป็น index ที่ต้องการทดสอบ
     const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null);
     const [factoryData, setFactoryData] = useState<FactoryData | null>(null);
+    const [signatures, setSignatures] = useState<StockCountSignatures>({});
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     useEffect(() => {
         if (mockFactories.length > 0 && !selectedFactory) {
@@ -163,24 +167,19 @@ export default function Dashboard() {
         if (selectedFactory && (currentUser.role === 'admin' || selectedFactory.region === currentUser.region)) {
             try {
                 const data = getFactoryData(selectedFactory);
+                // กรองข้อมูลตามภูมิภาค
+                if (currentUser.role !== 'admin') {
+                    data.stockData = data.stockData.filter(item =>
+                        item.region === currentUser.region);
+                    data.discrepancyData = data.discrepancyData.filter(item =>
+                        item.region === currentUser.region);
+                }
                 setFactoryData(data);
             } catch (error) {
                 console.error('Error fetching factory data:', error);
-                toast.error('ไม่สามารถโหลดข้อมูลโรงงานได้');
             }
         }
     }, [selectedFactory, currentUser]);
-
-    useEffect(() => {
-        // ตรวจสอบความคลาดเคลื่อนเมื่อข้อมูลเปลี่ยนแปลง
-        if (factoryData?.discrepancyData) {
-            factoryData.discrepancyData.forEach(item => {
-                if (Math.abs(item.difference) > 10) {
-                    NotificationService.notifyDiscrepancy(item.itemName, item.difference);
-                }
-            });
-        }
-    }, [factoryData]);
 
     const handleFactoryChange = (factoryId: string) => {
         const factory = mockFactories.find(f => f.id.toString() === factoryId);
@@ -191,81 +190,31 @@ export default function Dashboard() {
         }
     };
 
-    // แจ้งเตือนสถานะการตรวจนับ
-    const updateZoneStatus = (zone: string, status: string) => {
-        NotificationService.notifyStockCountStatus(zone, status);
-    };
-
-    // ตรวจสอบสิทธิ์การเข้าถึง
-    const canAccessRegion = (userRegion: string) => {
-        if (!currentUser) return false;
-
-        if (currentUser.role === 'admin') return true;
-
-        // Regional Manager can only access their assigned region
-        if (currentUser.role === 'regional_manager') {
-            return currentUser.region === userRegion;
-        }
-
-        return false;
-    };
-
-    // แก้ไขฟังก์ชัน canAccessWarehouse
-    const canAccessWarehouse = (warehouseRegion: string) => {
-        if (!currentUser) return false;
-
-        switch (currentUser.role) {
-            case 'admin':
-                return true;
-            case 'regional_manager':
-                return currentUser.region === warehouseRegion;
-            case 'warehouse_head':
-            case 'inventory_team':
-            case 'rdc_manager':
-                return currentUser.region === warehouseRegion;
-            default:
-                return false;
-        }
-    };
-
-    const canAccessZone = (zone: string) => {
-        if (!currentUser) return false;
-
-        switch (currentUser.role) {
-            case 'inventory_team':
-                return currentUser.assignedZones?.includes(zone);
-            case 'warehouse_head':
-                return true; // หัวหน้าคลังเข้าถึงได้ทุกโซนในคลังของตัวเอง
-            case 'regional_manager':
-                return true; // ผู้จัดการภาคเข้าถึงได้ทุกโซนในภูมิภาค
-            case 'admin':
-                return true;
-            default:
-                return false;
-        }
-    };
-
-    const formattedDate = new Date().toLocaleString('th-TH', {
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    // เพิ่มฟังก์ชัน handleSign
-    const handleSign = (signature: Signature) => {
-        setSignatures(prev => {
-            switch (currentUser.role) {
-                case 'warehouse_head':
-                    return { ...prev, warehouseHead: signature };
-                case 'inventory_team':
-                    return { ...prev, inventoryTeam: signature };
-                case 'regional_manager':
-                    return { ...prev, regionalManager: signature };
-                default:
-                    return prev;
+    const handleSignature = (role: string) => {
+        setSignatures(prev => ({
+            ...prev,
+            [role]: {
+                name: currentUser.name,
+                timestamp: new Date(),
+                role: role
             }
-        });
+        }));
+    };
+
+    // เพิ่มฟังก์ชันสำหรับกรองข้อมูลตามวันที่
+    const getFilteredData = () => {
+        if (!factoryData) return { stockData: [], discrepancyData: [] };
+
+        return {
+            stockData: factoryData.stockData.filter(item => {
+                const itemDate = new Date(item.date);
+                return itemDate.toDateString() === selectedDate.toDateString();
+            }),
+            discrepancyData: factoryData.discrepancyData.filter(item => {
+                const itemDate = new Date(item.date);
+                return itemDate.toDateString() === selectedDate.toDateString();
+            })
+        };
     };
 
     return (
@@ -281,71 +230,60 @@ export default function Dashboard() {
                 />
 
                 <main className="flex-1 p-6 space-y-6 bg-gray-50">
+                    {/* เพิ่ม DatePicker ด้านบน */}
+                    <div className="mb-6">
+                        <DatePicker
+                            date={selectedDate}
+                            onDateChange={(newDate) => setSelectedDate(newDate || new Date())}
+                        />
+                    </div>
+
                     <Tabs defaultValue="overview">
                         <TabsList>
                             <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
-                            {currentUser.role !== 'inventory_team' && (
-                                <TabsTrigger value="analytics">วิเคราะห์</TabsTrigger>
-                            )}
+                            <TabsTrigger value="discrepancy">รายการความคลาดเคลื่อน</TabsTrigger>
+                            <TabsTrigger value="analytics">วิเคราะห์</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="overview">
                             <OverviewTab
-                                stockData={factoryData?.stockData.filter(item =>
-                                    // กรองข้อมูลตามภูมิภาค
-                                    canAccessWarehouse(item.region) &&
-                                    canAccessZone(item.zone)
-                                ) || []}
-                                discrepancyData={factoryData?.discrepancyData.filter(item =>
-                                    // กรองข้อมูลตามภูมิภาค
-                                    canAccessWarehouse(item.region) &&
-                                    canAccessZone(item.location)
-                                ) || []}
+                                stockData={getFilteredData().stockData}
+                                discrepancyData={getFilteredData().discrepancyData}
                                 userRole={currentUser.role}
                                 userRegion={currentUser.region}
                             />
                         </TabsContent>
 
-                        {currentUser.role !== 'inventory_team' && (
-                            <TabsContent value="analytics">
-                                <AnalyticsTab
-                                    // กรองข้อมูลตามภูมิภาค
-                                    insights={
-                                        currentUser.role === 'admin'
-                                            ? factoryData?.analyticsInsights
-                                            : filterInsightsByRegion(factoryData?.analyticsInsights, currentUser.region)
-                                    }
-                                    timeData={
-                                        currentUser.role === 'admin'
-                                            ? timeDiscrepancyData
-                                            : filterTimeDataByRegion(timeDiscrepancyData, currentUser.region)
-                                    }
-                                    userRole={currentUser.role}
-                                    userRegion={currentUser.region}
-                                />
-                            </TabsContent>
-                        )}
+                        {/* ...existing tabs content... */}
                     </Tabs>
 
-                    {/* แสดงเฉพาะข้อมูลในภูมิภาคที่รับผิดชอบ */}
-                    {canAccessWarehouse(currentUser.region) && (
-                        <StockCountReport
-                            date={new Date()}
-                            region={currentUser.region}
-                            stockData={mockStockData.filter(item =>
-                                currentUser.role === 'admin' ||
-                                item.region === currentUser.region
-                            )}
-                            currentUser={currentUser}
-                            signatures={signatures}
-                            onSign={handleSign}
-                            canEdit={currentUser.role === 'inventory_team'}
-                            canApprove={currentUser.role === 'regional_manager'}
-                        />
+                    {/* Signature Section */}
+                    {currentUser.role !== 'inventory_team' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>การลงนาม</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex gap-4">
+                                    {!signatures[currentUser.role] ? (
+                                        <Button
+                                            onClick={() => handleSignature(currentUser.role)}
+                                            variant="outline"
+                                        >
+                                            ลงนามรับรอง
+                                        </Button>
+                                    ) : (
+                                        <div className="text-sm text-gray-500">
+                                            ลงนามแล้วโดย {signatures[currentUser.role].name}
+                                            <br />
+                                            เมื่อ {format(signatures[currentUser.role].timestamp, 'dd/MM/yyyy HH:mm')}
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
                     )}
                 </main>
-
-                <Footer lastUpdate={formattedDate} />
             </div>
         </div>
     );
