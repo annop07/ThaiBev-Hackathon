@@ -17,6 +17,7 @@ import { AnalyticsTab } from './components/tabs/AnalyticsTab';
 import { Footer } from './components/layout/Footer';
 import Sidebar from './components/layout/Sidebar';
 import { StockCountReport } from './components/reports/StockCountReport';
+import { UserManagement } from './components/user-management/UserManagement';
 
 // Mock data
 const mockStockData = [
@@ -110,9 +111,9 @@ export default function Dashboard() {
     const [currentUser] = useState<User>({
         id: "1",
         name: "John Doe",
-        position: "Warehouse Head",
+        position: "RDC Manager",
         region: "Central",
-        role: "warehouse_head"
+        role: "rdc_manager"
     });
 
     const [signatures, setSignatures] = useState<StockCountSignatures>({});
@@ -207,6 +208,9 @@ export default function Dashboard() {
                         <TabsList>
                             <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
                             <TabsTrigger value="analytics">วิเคราะห์</TabsTrigger>
+                            {currentUser.role === 'admin' && (
+                                <TabsTrigger value="users">จัดการผู้ใช้</TabsTrigger>
+                            )}
                         </TabsList>
 
                         <TabsContent value="overview">
@@ -232,6 +236,12 @@ export default function Dashboard() {
                                 </div>
                             </div>
                         </TabsContent>
+
+                        {currentUser.role === 'admin' && (
+                            <TabsContent value="users">
+                                <UserManagement currentUser={currentUser} />
+                            </TabsContent>
+                        )}
                     </Tabs>
 
                     {/* แสดงข้อมูลเฉพาะภาคที่ผู้ใช้มีสิทธิ์เข้าถึง */}
