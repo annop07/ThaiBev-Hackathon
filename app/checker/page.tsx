@@ -1,6 +1,8 @@
 ﻿"use client";
 import Image from "next/image";
 import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
+import { countingService } from '@/services/api';
 
 import React, { useState } from "react";
 import {
@@ -15,6 +17,7 @@ import {
 
 const SuperCheckerApp = () => {
   const { toast } = useToast();
+  const router = useRouter();
   const [currentView, setCurrentView] = useState("login");
   const [palletCount, setPalletCount] = useState(0);
   const [boxCount, setBoxCount] = useState(0);
@@ -25,6 +28,7 @@ const SuperCheckerApp = () => {
   const [manualBoxCount, setManualBoxCount] = useState(75);
   const [countMode, setCountMode] = useState<"pallet" | "box">("pallet");
   const [manualBoxInput, setManualBoxInput] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const BOTTLES_PER_BOX = 24; // 1 กล่องมี 9 ขวด
   const BOXES_PER_PALLET = 75; // 1 พาเลทมี 75 กล่อง
@@ -54,44 +58,51 @@ const SuperCheckerApp = () => {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
     try {
       const checkData = {
-        location: "1BC030A",
-        checker: loginData.username,
-        date: new Date().toISOString(),
-        countMode: countMode,
-        palletCount,
-        boxCount,
-        bottleCount,
-        bottlesPerBox: BOTTLES_PER_BOX,
-        boxesPerPallet: BOXES_PER_PALLET,
+        Checker: loginData.username,
+        Location: "1BA001A",
+        CountPallet: palletCount,
+        Timestamp: new Date().toISOString()
       };
 
-      // TODO: ส่งข้อมูลไปยัง API
-      // const response = await fetch('/api/check-data', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(checkData)
-      // });
+      const result = await countingService.submitCount(checkData);
 
-      // แสดง success toast
-      toast({
-        title: "บันทึกข้อมูลสำเร็จ",
-        description: `บันทึกข้อมูลการนับสินค้าเรียบร้อยแล้ว`,
-      });
+      if (result.success) {
+        toast({
+          title: "บันทึกข้อมูลสำเร็จ",
+          description: result.message || "บันทึกข้อมูลการนับสินค้าเรียบร้อยแล้ว",
+          variant: "default"
+        });
 
-      // รีเซ็ตค่าหลังจากส่งข้อมูลสำเร็จ
-      setPalletCount(0);
-      setBoxCount(0);
-      setBottleCount(0);
-      setManualBoxInput(0);
+        // รีเซ็ตและกลับไป dashboard
+        router.push("/dashboard");
+      } else {
+        toast({
+          title: "พบข้อผิดพลาด",
+          description: result.message || "ไม่สามารถบันทึกข้อมูลได้",
+          variant: "destructive"
+        });
+      }
+
     } catch (error) {
-      // แสดง error toast
+      console.error("API Error:", error);
+
+      let errorMessage = "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้";
+      if (error.message === 'Request timeout') {
+        errorMessage = "การเชื่อมต่อล้มเหลว: timeout";
+      }
+
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง",
-        variant: "destructive",
+        description: errorMessage,
+        variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,21 +139,19 @@ const SuperCheckerApp = () => {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setCountMode("pallet")}
-              className={`flex-1 py-2 px-4 rounded-lg ${
-                countMode === "pallet"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg ${countMode === "pallet"
+                ? "bg-green-600 text-white"
+                : "bg-gray-100 text-gray-600"
+                }`}
             >
               นับแบบพาเลท
             </button>
             <button
               onClick={() => setCountMode("box")}
-              className={`flex-1 py-2 px-4 rounded-lg ${
-                countMode === "box"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg ${countMode === "box"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600"
+                }`}
             >
               นับแบบกล่อง
             </button>
@@ -233,9 +242,11 @@ const SuperCheckerApp = () => {
         {/* เพิ่มปุ่มส่งข้อมูล */}
         <button
           onClick={handleSubmit}
-          className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-semibold transition-colors duration-200 mt-6"
+          disabled={isSubmitting}
+          className={`w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-semibold transition-colors duration-200 mt-6 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+            }`}
         >
-          บันทึกการนับสินค้า
+          {isSubmitting ? "กำลังบันทึก..." : "บันทึกการนับสินค้า"}
         </button>
       </div>
     </div>
@@ -423,33 +434,30 @@ const SuperCheckerApp = () => {
       <div className="max-w-md mx-auto flex justify-around">
         <button
           onClick={() => setCurrentView("counter")}
-          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-            currentView === "counter"
-              ? "bg-green-100 text-green-600"
-              : "text-gray-600 hover:text-green-600"
-          }`}
+          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${currentView === "counter"
+            ? "bg-green-100 text-green-600"
+            : "text-gray-600 hover:text-green-600"
+            }`}
         >
           <Settings className="w-6 h-6 mb-1" />
           <span className="text-xs">Counter</span>
         </button>
         <button
           onClick={() => setCurrentView("dashboard")}
-          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-            currentView === "dashboard"
-              ? "bg-green-100 text-green-600"
-              : "text-gray-600 hover:text-green-600"
-          }`}
+          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${currentView === "dashboard"
+            ? "bg-green-100 text-green-600"
+            : "text-gray-600 hover:text-green-600"
+            }`}
         >
           <BarChart3 className="w-6 h-6 mb-1" />
           <span className="text-xs">Dashboard</span>
         </button>
         <button
           onClick={() => setCurrentView("scanner")}
-          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-            currentView === "scanner"
-              ? "bg-green-100 text-green-600"
-              : "text-gray-600 hover:text-green-600"
-          }`}
+          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${currentView === "scanner"
+            ? "bg-green-100 text-green-600"
+            : "text-gray-600 hover:text-green-600"
+            }`}
         >
           <Scan className="w-6 h-6 mb-1" />
           <span className="text-xs">Scanner</span>
