@@ -25,6 +25,8 @@ interface StockCountReportProps {
     };
     signatures: StockCountSignatures;
     onSign: (signature: Signature) => void;
+    canEdit: boolean;
+    canApprove: boolean;
 }
 
 interface SignatureStatusProps {
@@ -69,6 +71,8 @@ export function StockCountReport({
     currentUser,
     signatures,
     onSign,
+    canEdit,
+    canApprove
 }: StockCountReportProps) {
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -78,11 +82,11 @@ export function StockCountReport({
 
         switch (role) {
             case 'warehouse_head':
-                return !signatures.warehouseHead;
+                return !signatures.warehouseHead && currentUser.region === region;
             case 'inventory_team':
-                return !signatures.inventoryTeam;
+                return !signatures.inventoryTeam && currentUser.region === region;
             case 'regional_manager':
-                return !signatures.regionalManager;
+                return !signatures.regionalManager && currentUser.region === region;
             default:
                 return false;
         }
@@ -139,6 +143,14 @@ export function StockCountReport({
                 </div>
             </CardHeader>
             <CardContent>
+                {canEdit && (
+                    <div className="mb-4">
+                        <Button onClick={() => {/* implement edit logic */ }}>
+                            บันทึกผลการตรวจนับ
+                        </Button>
+                    </div>
+                )}
+
                 <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-4">
                         <div className="border rounded-lg p-4">
@@ -211,14 +223,16 @@ export function StockCountReport({
                         </div>
                     </div>
 
-                    <div className="flex justify-end mt-4">
-                        <Button
-                            onClick={handleSendReport}
-                            disabled={isSending}
-                        >
-                            {isSending ? 'กำลังส่ง...' : 'ส่งรายงาน'}
-                        </Button>
-                    </div>
+                    {canApprove && !signatures.regionalManager && (
+                        <div className="flex justify-end mt-4">
+                            <Button
+                                onClick={() => setIsSignatureModalOpen(true)}
+                                disabled={!signatures.warehouseHead || !signatures.inventoryTeam}
+                            >
+                                อนุมัติรายงาน
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </CardContent>
 

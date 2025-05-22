@@ -103,18 +103,51 @@ const analyticsInsights = {
     ]
 };
 
+// Helper functions for filtering data by region
+const filterInsightsByRegion = (insights: any, region: string) => {
+    if (!insights || region === 'All') return insights;
+
+    return {
+        ...insights,
+        trendAnalysis: {
+            ...insights.trendAnalysis,
+            details: `ข้อมูลสำหรับภาค${region}: ${insights.trendAnalysis.details}`
+        },
+        topCategories: insights.topCategories.map((cat: any) => ({
+            ...cat,
+            name: `${cat.name} (${region})`
+        })),
+        recommendations: insights.recommendations.filter((rec: string) =>
+            rec.toLowerCase().includes(region.toLowerCase())
+        )
+    };
+};
+
+const filterTimeDataByRegion = (timeData: any[], region: string) => {
+    if (region === 'All') return timeData;
+
+    // สมมติว่าแต่ละ entry มี region
+    return timeData.filter(entry => entry.region === region);
+};
+
 // เพิ่ม import
 import { StockCountSignatures, Signature } from '@/types/signature';
 import NotificationService from '@/lib/notificationService';
+import { users } from '@/lib/mockData'; // Add this import
 
 export default function Dashboard() {
-    const [currentUser] = useState<User>({
-        id: "1",
-        name: "John Doe",
-        position: "RDC Manager",
-        region: "Central",
-        role: "rdc_manager"
-    });
+    // อัปเดต comment ให้ถูกต้อง
+    // users[0] - Admin
+    // users[1] - Warehouse Head
+    // users[2] - Inventory Team
+    // users[3] - Regional Manager North
+    // users[4] - Regional Manager Northeast
+    // users[5] - Regional Manager Central
+    // users[6] - Regional Manager East
+    // users[7] - Regional Manager West
+    // users[8] - Regional Manager South
+
+    const [currentUser] = useState<User>(users[0]); // เปลี่ยนเป็น index ที่ต้องการทดสอบ
 
     const [signatures, setSignatures] = useState<StockCountSignatures>({});
     const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null);
@@ -127,16 +160,16 @@ export default function Dashboard() {
     }, [selectedFactory]);
 
     useEffect(() => {
-        if (selectedFactory) {
+        if (selectedFactory && (currentUser.role === 'admin' || selectedFactory.region === currentUser.region)) {
             try {
                 const data = getFactoryData(selectedFactory);
-                console.log('Factory Data:', data);
                 setFactoryData(data);
             } catch (error) {
                 console.error('Error fetching factory data:', error);
+                toast.error('ไม่สามารถโหลดข้อมูลโรงงานได้');
             }
         }
-    }, [selectedFactory]);
+    }, [selectedFactory, currentUser]);
 
     useEffect(() => {
         // ตรวจสอบความคลาดเคลื่อนเมื่อข้อมูลเปลี่ยนแปลง
@@ -151,7 +184,11 @@ export default function Dashboard() {
 
     const handleFactoryChange = (factoryId: string) => {
         const factory = mockFactories.find(f => f.id.toString() === factoryId);
-        setSelectedFactory(factory || null);
+        if (factory && (currentUser.role === 'admin' || factory.region === currentUser.region)) {
+            setSelectedFactory(factory);
+        } else {
+            toast.error('คุณไม่มีสิทธิ์เข้าถึงข้อมูลโรงงานนี้');
+        }
     };
 
     // แจ้งเตือนสถานะการตรวจนับ
@@ -163,11 +200,49 @@ export default function Dashboard() {
     const canAccessRegion = (userRegion: string) => {
         if (!currentUser) return false;
 
-        return (
-            (currentUser.role === 'rdc_manager' && currentUser.region === userRegion) ||
-            (currentUser.role === 'inventory_team' && currentUser.region === userRegion) ||
-            (currentUser.role === 'regional_manager' && currentUser.region === userRegion)
-        );
+        if (currentUser.role === 'admin') return true;
+
+        // Regional Manager can only access their assigned region
+        if (currentUser.role === 'regional_manager') {
+            return currentUser.region === userRegion;
+        }
+
+        return false;
+    };
+
+    // แก้ไขฟังก์ชัน canAccessWarehouse
+    const canAccessWarehouse = (warehouseRegion: string) => {
+        if (!currentUser) return false;
+
+        switch (currentUser.role) {
+            case 'admin':
+                return true;
+            case 'regional_manager':
+                return currentUser.region === warehouseRegion;
+            case 'warehouse_head':
+            case 'inventory_team':
+            case 'rdc_manager':
+                return currentUser.region === warehouseRegion;
+            default:
+                return false;
+        }
+    };
+
+    const canAccessZone = (zone: string) => {
+        if (!currentUser) return false;
+
+        switch (currentUser.role) {
+            case 'inventory_team':
+                return currentUser.assignedZones?.includes(zone);
+            case 'warehouse_head':
+                return true; // หัวหน้าคลังเข้าถึงได้ทุกโซนในคลังของตัวเอง
+            case 'regional_manager':
+                return true; // ผู้จัดการภาคเข้าถึงได้ทุกโซนในภูมิภาค
+            case 'admin':
+                return true;
+            default:
+                return false;
+        }
     };
 
     const formattedDate = new Date().toLocaleString('th-TH', {
@@ -201,60 +276,73 @@ export default function Dashboard() {
                     notifications={recentNotifications}
                     selectedFactory={selectedFactory}
                     onFactoryChange={handleFactoryChange}
+                    canChangeFactory={currentUser.role !== 'inventory_team'}
+                    userRegion={currentUser.region}
                 />
 
                 <main className="flex-1 p-6 space-y-6 bg-gray-50">
                     <Tabs defaultValue="overview">
                         <TabsList>
                             <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
-                            <TabsTrigger value="analytics">วิเคราะห์</TabsTrigger>
-                            {currentUser.role === 'admin' && (
-                                <TabsTrigger value="users">จัดการผู้ใช้</TabsTrigger>
+                            {currentUser.role !== 'inventory_team' && (
+                                <TabsTrigger value="analytics">วิเคราะห์</TabsTrigger>
                             )}
                         </TabsList>
 
                         <TabsContent value="overview">
                             <OverviewTab
-                                stockData={factoryData ? factoryData.stockData : []}
-                                discrepancyData={factoryData ? factoryData.discrepancyData : []}
+                                stockData={factoryData?.stockData.filter(item =>
+                                    // กรองข้อมูลตามภูมิภาค
+                                    canAccessWarehouse(item.region) &&
+                                    canAccessZone(item.zone)
+                                ) || []}
+                                discrepancyData={factoryData?.discrepancyData.filter(item =>
+                                    // กรองข้อมูลตามภูมิภาค
+                                    canAccessWarehouse(item.region) &&
+                                    canAccessZone(item.location)
+                                ) || []}
+                                userRole={currentUser.role}
+                                userRegion={currentUser.region}
                             />
                         </TabsContent>
 
-                        <TabsContent value="analytics">
-                            <AnalyticsTab
-                                insights={factoryData ? factoryData.analyticsInsights : analyticsInsights}
-                                timeData={timeDiscrepancyData}
-                            />
-                        </TabsContent>
-
-                        <TabsContent value="audit">
-                            <div className="p-6 bg-white rounded-lg shadow">
-                                <h2 className="text-2xl font-bold mb-4">Audit Log</h2>
-                                <p className="text-gray-500">ประวัติการเปลี่ยนแปลงและการตรวจสอบ</p>
-                                <div className="mt-4">
-                                    <p>ไม่มีข้อมูลการตรวจสอบในขณะนี้</p>
-                                </div>
-                            </div>
-                        </TabsContent>
-
-                        {currentUser.role === 'admin' && (
-                            <TabsContent value="users">
-                                <UserManagement currentUser={currentUser} />
+                        {currentUser.role !== 'inventory_team' && (
+                            <TabsContent value="analytics">
+                                <AnalyticsTab
+                                    // กรองข้อมูลตามภูมิภาค
+                                    insights={
+                                        currentUser.role === 'admin'
+                                            ? factoryData?.analyticsInsights
+                                            : filterInsightsByRegion(factoryData?.analyticsInsights, currentUser.region)
+                                    }
+                                    timeData={
+                                        currentUser.role === 'admin'
+                                            ? timeDiscrepancyData
+                                            : filterTimeDataByRegion(timeDiscrepancyData, currentUser.region)
+                                    }
+                                    userRole={currentUser.role}
+                                    userRegion={currentUser.region}
+                                />
                             </TabsContent>
                         )}
                     </Tabs>
 
-                    {/* แสดงข้อมูลเฉพาะภาคที่ผู้ใช้มีสิทธิ์เข้าถึง */}
-                    <div className="grid gap-6">
+                    {/* แสดงเฉพาะข้อมูลในภูมิภาคที่รับผิดชอบ */}
+                    {canAccessWarehouse(currentUser.region) && (
                         <StockCountReport
                             date={new Date()}
                             region={currentUser.region}
-                            stockData={mockStockData} // Change this line
+                            stockData={mockStockData.filter(item =>
+                                currentUser.role === 'admin' ||
+                                item.region === currentUser.region
+                            )}
                             currentUser={currentUser}
                             signatures={signatures}
                             onSign={handleSign}
+                            canEdit={currentUser.role === 'inventory_team'}
+                            canApprove={currentUser.role === 'regional_manager'}
                         />
-                    </div>
+                    )}
                 </main>
 
                 <Footer lastUpdate={formattedDate} />

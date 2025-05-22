@@ -83,12 +83,20 @@ function ProfileMenu() {
 }
 
 interface HeaderProps {
-    notifications: Notification[];
+    notifications: any[];
     selectedFactory: Factory | null;
     onFactoryChange: (factoryId: string) => void;
+    canChangeFactory: boolean;
+    userRegion: string;  // เพิ่ม prop type นี้
 }
 
-export function Header({ notifications, selectedFactory, onFactoryChange }: HeaderProps) {
+export function Header({
+    notifications,
+    selectedFactory,
+    onFactoryChange,
+    canChangeFactory,
+    userRegion
+}: HeaderProps) {
     return (
         <header className="border-b bg-white px-6 py-3">
             <div className="flex items-center justify-between">

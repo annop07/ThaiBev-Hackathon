@@ -1,4 +1,5 @@
 import type { Factory, FactoryData } from '@/types/factory';
+import { User, rolePermissions } from '@/types/auth';
 
 // Define types for product data
 interface ProductData {
@@ -111,12 +112,22 @@ const factoryProducts: FactoryProductsMap = {
 };
 
 function generateMockDataForFactory(factory: Factory): FactoryData {
-    // เลือกข้อมูลสินค้าตามโรงงาน หรือใช้ข้อมูลจาก F001 เป็นค่าเริ่มต้น
-    const products = factoryProducts[factory.code] || factoryProducts['F001'] || [];
+    // เพิ่มการตรวจสอบภูมิภาค
+    const factoryRegion = {
+        'F001': 'Northeast', // อำนาจเจริญ
+        'F014': 'Northeast', // อุบลราชธานี
+        'F011': 'Central',   // กรุงเทพมหานคร
+    };
+
+    // กรองข้อมูลตามภูมิภาค
+    const products = factoryProducts[factory.code]?.map(product => ({
+        ...product,
+        region: factoryRegion[factory.code as keyof typeof factoryRegion]
+    })) || [];
 
     // สร้างข้อมูล stock จากสินค้าและ locations
-    const stockData = products.flatMap((product: ProductData) =>
-        product.locations.map((location: string, index: number) => {
+    const stockData = products.flatMap((product: ProductData & { region: string }) =>
+        product.locations.map((location: string) => {
             const isSmallBatch = location.includes('2A');
             const baseUnits = isSmallBatch ? 3360 : 40320;
             const basePallets = isSmallBatch ? 2 : 24;
@@ -131,7 +142,7 @@ function generateMockDataForFactory(factory: Factory): FactoryData {
                 itemCode: product.code,
                 description: product.name,
                 location: location,
-                manufacturingDate: new Date(2025, 2, 15 + index).toLocaleDateString('en-US'),
+                manufacturingDate: new Date(2025, 2, 15).toLocaleDateString('en-US'),
                 tihi: '10x7',
                 status: 'Available',
                 boxPerUnit: product.boxPerUnit,
@@ -149,7 +160,8 @@ function generateMockDataForFactory(factory: Factory): FactoryData {
                 // ผลต่าง
                 difference: difference,
                 system: baseUnits,
-                physical: countedUnits
+                physical: countedUnits,
+                region: product.region // เพิ่ม region เข้าไปในข้อมูล
             };
         })
     );
@@ -205,11 +217,7 @@ function generateMockDataForFactory(factory: Factory): FactoryData {
         analyticsInsights,
         factory: {
             ...factory,
-            systemCount: totalSystemCount,
-            physicalCount: totalPhysicalCount,
-            discrepancyRate: Number(discrepancyRate.toFixed(2)),
-            status: discrepancyRate > 5 ? 'high' :
-                discrepancyRate > 2 ? 'medium' : 'low'
+            region: factoryRegion[factory.code as keyof typeof factoryRegion]
         }
     };
 }
@@ -226,12 +234,133 @@ function getFactoryData(factory: Factory): FactoryData {
 
     // ถ้าไม่มีใน cache ให้สร้างข้อมูลใหม่
     const data = generateMockDataForFactory(factory);
-    
+
     // เก็บข้อมูลลง cache
     factoryDataCache.set(factory.code, data);
-    
+
     return data;
 }
 
 // export ฟังก์ชันที่จำเป็น
 export { getFactoryData, factoryDataCache };
+
+// Mock data for users
+export const users: User[] = [
+    {
+        id: "1",
+        name: "Admin User",
+        email: "admin@example.com",
+        position: "System Admin",
+        role: "admin",
+        region: "All",
+        permissions: rolePermissions.admin,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "2",
+        name: "Warehouse Head",
+        email: "warehouse@example.com",
+        position: "Warehouse Head",
+        role: "warehouse_head",
+        region: "Central",
+        permissions: rolePermissions.warehouse_head,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "3",
+        name: "Inventory Staff",
+        email: "inventory@example.com",
+        position: "Inventory Staff",
+        role: "inventory_team",
+        region: "Central",
+        permissions: rolePermissions.inventory_team,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "4",
+        name: "Regional Manager North",
+        email: "north@example.com",
+        position: "Regional Manager",
+        role: "regional_manager",
+        region: "North",
+        permissions: rolePermissions.regional_manager,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "5",
+        name: "Regional Manager Northeast",
+        email: "northeast@example.com",
+        position: "Regional Manager",
+        role: "regional_manager",
+        region: "Northeast",
+        permissions: rolePermissions.regional_manager,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "6",
+        name: "Regional Manager Central",
+        email: "central@example.com",
+        position: "Regional Manager",
+        role: "regional_manager",
+        region: "Central",
+        permissions: rolePermissions.regional_manager,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "7",
+        name: "Regional Manager East",
+        email: "east@example.com",
+        position: "Regional Manager",
+        role: "regional_manager",
+        region: "East",
+        permissions: rolePermissions.regional_manager,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "8",
+        name: "Regional Manager West",
+        email: "west@example.com",
+        position: "Regional Manager",
+        role: "regional_manager",
+        region: "West",
+        permissions: rolePermissions.regional_manager,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    },
+    {
+        id: "9",
+        name: "Regional Manager South",
+        email: "south@example.com",
+        position: "Regional Manager",
+        role: "regional_manager",
+        region: "South",
+        permissions: rolePermissions.regional_manager,
+        lastLogin: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+    }
+];
