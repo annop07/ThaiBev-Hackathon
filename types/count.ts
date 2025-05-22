@@ -12,3 +12,13 @@ export interface CountResponse {
     matched: boolean;
     message: string;
 }
+
+// ข้อมูลสินค้าจาก API /master/items
+export interface MasterItem {
+    ItemCode: string;
+    description: string;
+    Location: string;
+    total_pallet: number;
+    CountPallet: number;
+    Diff_Pallet: number;
+}

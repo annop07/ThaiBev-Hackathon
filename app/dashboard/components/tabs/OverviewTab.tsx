@@ -25,32 +25,63 @@ import { DiscrepancyTable } from "../tables/DiscrepancyTable";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { ComparisonChart } from "../charts/ComparisonChart";
 
+interface StockData {
+    totalLocations: number;
+    totalItems: number;
+    totalPallets: number;
+    countedPallets: number;
+}
+
+interface DiscrepancyData {
+    totalDiscrepancies: number;
+    locations: Array<{
+        location: string;
+        itemCode: string;
+        description: string;
+        expected: number;
+        counted: number;
+        difference: number;
+    }>;
+    allItems: Array<{
+        location: string;
+        itemCode: string;
+        description: string;
+        expected: number;
+        counted: number;
+        difference: number;
+    }>;
+    percentage: number;
+}
+
 interface OverviewTabProps {
-    stockData: Array<{
-        code: string;
-        name: string;
-        zone: string;
-        location: string;
-        position: string; // เพิ่ม position
-        system: number;
-        physical: number;
-        difference: number;
-    }>;
-    discrepancyData: Array<{
-        id: number;
-        code: string;
-        name: string;
-        location: string;
-        position: string; // เพิ่ม position
-        zone: string;
-        physical: number;
-        system: number;
-        difference: number;
-        status: 'high' | 'medium' | 'low';
-    }>;
+    stockData: StockData;
+    discrepancyData: DiscrepancyData;
     userRole: string;
     userRegion: string;
 }
+
+const getUniqueInventoryItems = (items: DiscrepancyData['locations']) => {
+    const uniqueMap = new Map();
+
+    items.forEach(item => {
+        const key = item.itemCode;
+        if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, {
+                ...item,
+                total_expected: item.expected,
+                total_counted: item.counted,
+                total_difference: item.difference
+            });
+        } else {
+            const existing = uniqueMap.get(key);
+            existing.total_expected += item.expected;
+            existing.total_counted += item.counted;
+            existing.total_difference += item.difference;
+        }
+    });
+
+    return Array.from(uniqueMap.values());
+};
 
 export function OverviewTab({
     stockData,
@@ -61,14 +92,14 @@ export function OverviewTab({
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    // คำนวณข้อมูลที่จะแสดงในหน้าปัจจุบัน
+    // Paginate discrepancy locations instead of stockData
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = stockData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(stockData.length / itemsPerPage);
+    const currentItems = discrepancyData.locations.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(discrepancyData.locations.length / itemsPerPage);
 
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
     };
 
     // Prepare data for the chart
@@ -101,7 +132,7 @@ export function OverviewTab({
                 <CardHeader>
                     <CardTitle>ข้อมูลสินค้าในคลัง</CardTitle>
                     <CardDescription>
-                        แสดงข้อมูลสินค้าในคลัง {userRegion}
+                        แสดงข้อมูลสินค้าในคลัง {userRegion} (รวมตามรหัสสินค้า)
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -110,75 +141,90 @@ export function OverviewTab({
                             <TableRow>
                                 <TableHead>รหัสสินค้า</TableHead>
                                 <TableHead>ชื่อสินค้า</TableHead>
-                                <TableHead>โซน</TableHead>
-                                <TableHead>ตำแหน่ง</TableHead>
-                                <TableHead className="text-right">จำนวนในระบบ</TableHead>
-                                <TableHead className="text-right">จำนวนนับจริง</TableHead>
+                                <TableHead className="text-right">จำนวนในระบบ (รวม)</TableHead>
+                                <TableHead className="text-right">จำนวนนับจริง (รวม)</TableHead>
                                 <TableHead className="text-right">ผลต่าง</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {currentItems.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{item.code}</TableCell>
-                                    <TableCell>{item.name}</TableCell>
-                                    <TableCell>{item.zone}</TableCell>
-                                    <TableCell>{item.position}</TableCell>
-                                    <TableCell className="text-right">{item.system}</TableCell>
-                                    <TableCell className="text-right">{item.physical}</TableCell>
-                                    <TableCell className="text-right">
-                                        <span className={item.difference > 0 ? 'text-green-600' : 'text-red-600'}>
-                                            {item.difference > 0 ? '+' : ''}{item.difference}
-                                        </span>
+                            {getUniqueInventoryItems(discrepancyData.allItems || []).map((item) => (
+                                <TableRow
+                                    key={item.itemCode}
+                                    className={item.total_difference !== 0 ? "bg-red-50" : ""}
+                                >
+                                    <TableCell>{item.itemCode}</TableCell>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell className="text-right">{item.total_expected}</TableCell>
+                                    <TableCell className="text-right">{item.total_counted}</TableCell>
+                                    <TableCell
+                                        className={`text-right ${item.total_difference !== 0 ? "text-red-600 font-medium" : ""
+                                            }`}
+                                    >
+                                        {item.total_difference}
                                     </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
-
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="mt-4 flex justify-center">
-                            <Pagination>
-                                <PaginationContent>
-                                    {/* Previous Button */}
-                                    <PaginationItem>
-                                        <PaginationPrevious
-                                            onClick={() => handlePageChange(currentPage - 1)}
-                                            disabled={currentPage === 1}
-                                        />
-                                    </PaginationItem>
-
-                                    {/* Page Numbers */}
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                        <PaginationItem key={page}>
-                                            <PaginationLink
-                                                onClick={() => handlePageChange(page)}
-                                                isActive={currentPage === page}
-                                            >
-                                                {page}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    ))}
-
-                                    {/* Next Button */}
-                                    <PaginationItem>
-                                        <PaginationNext
-                                            onClick={() => handlePageChange(currentPage + 1)}
-                                            disabled={currentPage === totalPages}
-                                        />
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
-                        </div>
-                    )}
-
-                    {/* Page Information */}
-                    <div className="text-sm text-gray-500 text-center mt-2">
-                        แสดง {indexOfFirstItem + 1} ถึง {Math.min(indexOfLastItem, stockData.length)} จาก {stockData.length} รายการ
-                    </div>
                 </CardContent>
             </Card>
+
+            {/* Discrepancy Table */}
+            {discrepancyData.locations.length > 0 && (
+                <div className="col-span-full">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>รายการนับสินค้าเทียบกับWMS</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>รหัสสินค้า</TableHead>
+                                        <TableHead>รายละเอียด</TableHead>
+                                        <TableHead className="text-right">WMS</TableHead>
+                                        <TableHead className="text-right">นับจริง</TableHead>
+                                        <TableHead className="text-right">ผลต่าง</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {currentItems.map((item) => (
+                                        <TableRow key={`${item.itemCode}-${item.location}`}>
+                                            <TableCell>{item.location}</TableCell>
+                                            <TableCell>{item.itemCode}</TableCell>
+                                            <TableCell>{item.description}</TableCell>
+                                            <TableCell className="text-right">{item.expected}</TableCell>
+                                            <TableCell className="text-right">{item.counted}</TableCell>
+                                            <TableCell className="text-right text-red-600 font-medium">
+                                                {item.difference}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center gap-2 mt-4">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <button
+                                            key={page}
+                                            onClick={() => handlePageChange(page)}
+                                            className={`px-3 py-1 rounded ${currentPage === page
+                                                ? "bg-primary text-white"
+                                                : "bg-gray-100"
+                                                }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }

@@ -2,9 +2,9 @@
 import Image from "next/image";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
-import { countingService } from '@/services/api';
+import { countingService } from "@/services/api";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -14,6 +14,7 @@ import {
   User,
   Settings,
 } from "lucide-react";
+import type { MasterItem } from "@/types/count";
 
 const SuperCheckerApp = () => {
   const { toast } = useToast();
@@ -29,9 +30,24 @@ const SuperCheckerApp = () => {
   const [countMode, setCountMode] = useState<"pallet" | "box">("pallet");
   const [manualBoxInput, setManualBoxInput] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showOnlyDiff, setShowOnlyDiff] = useState(false);
 
   const BOTTLES_PER_BOX = 24; // 1 กล่องมี 9 ขวด
   const BOXES_PER_PALLET = 75; // 1 พาเลทมี 75 กล่อง
+
+  useEffect(() => {
+    if (currentView === "dashboard") {
+      setLoadingItems(true);
+      countingService
+        .getMasterItems()
+        .then((data) => setMasterItems(data))
+        .catch(() => setMasterItems([]))
+        .finally(() => setLoadingItems(false));
+    }
+  }, [currentView]);
 
   // ฟังก์ชันคำนวณจำนวนขวด
   const calculateBottles = (boxes: number) => {
@@ -64,9 +80,9 @@ const SuperCheckerApp = () => {
     try {
       const checkData = {
         Checker: loginData.username,
-        Location: "1BA001A",
+        Location: "1BE001A",
         CountPallet: palletCount,
-        Timestamp: new Date().toISOString()
+        Timestamp: new Date().toISOString(),
       };
 
       const result = await countingService.submitCount(checkData);
@@ -74,32 +90,32 @@ const SuperCheckerApp = () => {
       if (result.success) {
         toast({
           title: "บันทึกข้อมูลสำเร็จ",
-          description: result.message || "บันทึกข้อมูลการนับสินค้าเรียบร้อยแล้ว",
-          variant: "default"
+          description:
+            result.message || "บันทึกข้อมูลการนับสินค้าเรียบร้อยแล้ว",
+          variant: "default",
         });
 
-        // รีเซ็ตและกลับไป dashboard
-        router.push("/dashboard");
+        // เปลี่ยนจาก router.push("/dashboard") เป็น
+        setCurrentView("dashboard");
       } else {
         toast({
           title: "พบข้อผิดพลาด",
           description: result.message || "ไม่สามารถบันทึกข้อมูลได้",
-          variant: "destructive"
+          variant: "destructive",
         });
       }
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("API Error:", error);
 
       let errorMessage = "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้";
-      if (error.message === 'Request timeout') {
+      if (error?.message === "Request timeout") {
         errorMessage = "การเชื่อมต่อล้มเหลว: timeout";
       }
 
       toast({
         title: "เกิดข้อผิดพลาด",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -139,19 +155,21 @@ const SuperCheckerApp = () => {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setCountMode("pallet")}
-              className={`flex-1 py-2 px-4 rounded-lg ${countMode === "pallet"
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-600"
-                }`}
+              className={`flex-1 py-2 px-4 rounded-lg ${
+                countMode === "pallet"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
             >
               นับแบบพาเลท
             </button>
             <button
               onClick={() => setCountMode("box")}
-              className={`flex-1 py-2 px-4 rounded-lg ${countMode === "box"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600"
-                }`}
+              className={`flex-1 py-2 px-4 rounded-lg ${
+                countMode === "box"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
             >
               นับแบบกล่อง
             </button>
@@ -243,8 +261,9 @@ const SuperCheckerApp = () => {
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className={`w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-semibold transition-colors duration-200 mt-6 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+          className={`w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-semibold transition-colors duration-200 mt-6 ${
+            isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
           {isSubmitting ? "กำลังบันทึก..." : "บันทึกการนับสินค้า"}
         </button>
@@ -314,6 +333,81 @@ const SuperCheckerApp = () => {
         </div>
 
         <div className="mt-4 text-sm text-gray-500">Something...</div>
+
+        {currentView === "dashboard" && (
+          <div>
+            <h2 className="text-lg font-bold mb-2">
+              รายการสินค้าโรงงานนครราชสีมา
+            </h2>
+            {/* ฟีเจอร์ 1: Filter & Toggle */}
+            <div className="flex flex-col md:flex-row gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="ค้นหาสินค้า/รหัส/Location"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border rounded px-2 py-1 flex-1"
+              />
+              <label className="flex items-center gap-1 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showOnlyDiff}
+                  onChange={(e) => setShowOnlyDiff(e.target.checked)}
+                />
+                แสดงเฉพาะสินค้าที่มีผลต่าง
+              </label>
+            </div>
+            {loadingItems ? (
+              <div>กำลังโหลดข้อมูล...</div>
+            ) : (
+              <table className="w-full border">
+                <thead>
+                  <tr>
+                    <th>รหัสสินค้า</th>
+                    <th>ชื่อสินค้า</th>
+                    <th>Location</th>
+                    <th>จำนวนในระบบ</th>
+                    <th>จำนวนที่นับ</th>
+                    <th>ผลต่าง</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {masterItems
+                    .filter(
+                      (item) =>
+                        (!showOnlyDiff || item.Diff_Pallet !== 0) &&
+                        (item.ItemCode.includes(search) ||
+                          item.description.includes(search) ||
+                          item.Location.includes(search))
+                    )
+                    .map((item, idx) => (
+                      <tr
+                        key={idx}
+                        style={{
+                          background:
+                            item.Diff_Pallet === 0
+                              ? "#e0ffe0"
+                              : item.Diff_Pallet > 0
+                              ? "#fffbe0"
+                              : "#ffe0e0",
+                        }}
+                      >
+                        <td>{item.ItemCode}</td>
+                        <td>{item.description}</td>
+                        <td>{item.Location}</td>
+                        <td>{item.total_pallet}</td>
+                        <td>{item.CountPallet}</td>
+                        <td>
+                          {item.Diff_Pallet}
+                          {item.Diff_Pallet !== 0 && <span>⚠️</span>}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -434,30 +528,33 @@ const SuperCheckerApp = () => {
       <div className="max-w-md mx-auto flex justify-around">
         <button
           onClick={() => setCurrentView("counter")}
-          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${currentView === "counter"
-            ? "bg-green-100 text-green-600"
-            : "text-gray-600 hover:text-green-600"
-            }`}
+          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+            currentView === "counter"
+              ? "bg-green-100 text-green-600"
+              : "text-gray-600 hover:text-green-600"
+          }`}
         >
           <Settings className="w-6 h-6 mb-1" />
           <span className="text-xs">Counter</span>
         </button>
         <button
           onClick={() => setCurrentView("dashboard")}
-          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${currentView === "dashboard"
-            ? "bg-green-100 text-green-600"
-            : "text-gray-600 hover:text-green-600"
-            }`}
+          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+            currentView === "dashboard"
+              ? "bg-green-100 text-green-600"
+              : "text-gray-600 hover:text-green-600"
+          }`}
         >
           <BarChart3 className="w-6 h-6 mb-1" />
           <span className="text-xs">Dashboard</span>
         </button>
         <button
           onClick={() => setCurrentView("scanner")}
-          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${currentView === "scanner"
-            ? "bg-green-100 text-green-600"
-            : "text-gray-600 hover:text-green-600"
-            }`}
+          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+            currentView === "scanner"
+              ? "bg-green-100 text-green-600"
+              : "text-gray-600 hover:text-green-600"
+          }`}
         >
           <Scan className="w-6 h-6 mb-1" />
           <span className="text-xs">Scanner</span>
